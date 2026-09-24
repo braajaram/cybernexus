@@ -1,0 +1,67 @@
+CYBERNEXUS
+Network Security Monitoring and Threat Detection System
+
+1. INTRODUCTION
+
+CyberNexus is a network security monitoring project designed
+to demonstrate basic cybersecurity monitoring, detection,
+authentication, protection, and security awareness features.
+
+2. MAIN FEATURES
+
+1. Network Packet Sniffer
+2. Intrusion Detection System (IDS)
+3. Security Alert Database
+4. Two-Factor Authentication (2FA)
+5. Password Strength Checker
+6. Web Application Firewall (WAF)
+7. Encryption Vault
+8. Phishing Email Classifier
+9. Network Anomaly Detection
+10. Security Monitoring Dashboard
+11. Phishing Awareness Simulation
+
+3. TECHNOLOGIES USED
+
+Python
+FastAPI
+SQLite
+Scapy
+PyOTP
+Cryptography
+Scikit-learn
+Pandas
+NumPy
+HTML
+CSS
+JavaScript
+
+4. SECURITY FEATURES
+
+2FA provides OTP-based verification.
+
+Password Strength Checker evaluates password characteristics.
+
+WAF identifies suspicious input patterns.
+
+Encryption Vault encrypts and decrypts files.
+
+Phishing Email Classifier identifies potentially suspicious
+email text.
+
+Anomaly Detection identifies unusual network traffic patterns.
+
+5. DASHBOARD
+
+The CyberNexus dashboard displays security alerts and
+provides alert search and activity monitoring.
+
+6. PHISHING AWARENESS
+
+A safe educational simulation demonstrates common warning
+signs of suspicious messages.
+
+7. CONCLUSION
+
+CyberNexus demonstrates how multiple cybersecurity concepts
+can be combined into a single security monitoring project.s

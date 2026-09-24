@@ -1,0 +1,261 @@
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel
+import sqlite3
+import os
+import re
+import hashlib
+import requests
+
+app = FastAPI(title="CyberNexus")
+
+# =========================================================
+# PATHS
+# =========================================================
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DATABASE = os.path.join(
+    BASE_DIR,
+    "cybershield.db"
+)
+
+FRONTEND_FILE = os.path.join(
+    BASE_DIR,
+    "frontend",
+    "index.html"
+)
+
+
+# =========================================================
+# WAF
+# =========================================================
+
+WAF_PATTERNS = [
+    r"('|--|;)",
+    r"\bOR\b\s+\d+\s*=\s*\d+",
+    r"<script.*?>",
+    r"javascript:",
+    r"onerror\s*="
+]
+
+
+def detect_waf_threat(text):
+    for pattern in WAF_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            return True
+
+    return False
+
+
+@app.middleware("http")
+async def waf_middleware(request: Request, call_next):
+
+    query_text = str(request.query_params)
+
+    if detect_waf_threat(query_text):
+        return JSONResponse(
+            status_code=403,
+            content={
+                "status": "blocked",
+                "message": "Suspicious request detected by CyberNexus WAF"
+            }
+        )
+
+    response = await call_next(request)
+
+    return response
+
+
+# =========================================================
+# HOME / DASHBOARD
+# =========================================================
+
+@app.get("/")
+def home():
+
+    return FileResponse(FRONTEND_FILE)
+
+
+# =========================================================
+# ALERTS API
+# =========================================================
+
+@app.get("/alerts")
+def get_alerts():
+
+    connection = sqlite3.connect(DATABASE)
+
+    connection.row_factory = sqlite3.Row
+
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT
+            id,
+            timestamp,
+            source_ip,
+            destination_ip,
+            protocol,
+            alert_type
+        FROM alerts
+        ORDER BY id DESC
+    """)
+
+    alerts = [
+        dict(row)
+        for row in cursor.fetchall()
+    ]
+
+    connection.close()
+
+    return {
+        "total_alerts": len(alerts),
+        "alerts": alerts
+    }
+
+
+# =========================================================
+# PASSWORD STRENGTH CHECKER
+# =========================================================
+
+class PasswordRequest(BaseModel):
+
+    password: str
+
+
+def check_password_strength(password):
+
+    checks = {
+
+        "length":
+            len(password) > 8,
+
+        "uppercase":
+            bool(re.search(r"[A-Z]", password)),
+
+        "lowercase":
+            bool(re.search(r"[a-z]", password)),
+
+        "number":
+            bool(re.search(r"[0-9]", password)),
+
+        "symbol":
+            bool(re.search(r"[^A-Za-z0-9]", password))
+    }
+
+    score = sum(checks.values())
+
+    if score == 5:
+
+        strength = "Strong"
+
+    elif score >= 3:
+
+        strength = "Medium"
+
+    else:
+
+        strength = "Weak"
+
+    return checks, strength
+
+
+def check_password_breach(password):
+
+    try:
+
+        sha1 = hashlib.sha1(
+            password.encode("utf-8")
+        ).hexdigest().upper()
+
+        prefix = sha1[:5]
+
+        suffix = sha1[5:]
+
+        url = (
+            "https://api.pwnedpasswords.com/range/"
+            + prefix
+        )
+
+        response = requests.get(
+            url,
+            timeout=5
+        )
+
+        if response.status_code != 200:
+
+            return "Breach check unavailable"
+
+        for line in response.text.splitlines():
+
+            hash_suffix, count = line.split(":")
+
+            if hash_suffix == suffix:
+
+                return f"Found in {count} breaches"
+
+        return "Not found in known breaches"
+
+    except requests.RequestException:
+
+        return "Breach check unavailable"
+
+
+@app.post("/password-strength")
+def password_strength(data: PasswordRequest):
+
+    password = data.password
+
+    checks, strength = check_password_strength(
+        password
+    )
+
+    breach = check_password_breach(
+        password
+    )
+
+    return {
+
+        "strength": strength,
+
+        "checks": checks,
+
+        "breach": breach
+    }
+
+
+# =========================================================
+# SYSTEM STATUS
+# =========================================================
+
+@app.get("/status")
+def system_status():
+
+    return {
+
+        "project": "CyberNexus",
+
+        "status": "active",
+
+        "features": [
+
+            "Intrusion Detection System",
+
+            "Web Application Firewall",
+
+            "Password Strength Checker",
+
+            "2FA",
+
+            "Encryption Vault",
+
+            "Phishing Classifier",
+
+            "Anomaly Detection",
+
+            "Security Dashboard"
+
+        ]
+
+    }
