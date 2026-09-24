@@ -1,0 +1,521 @@
+    <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberNexus Dashboard</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #111827;
+        }
+
+        .header {
+            background: #111827;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 30px;
+        }
+
+        .header p {
+            margin-bottom: 0;
+        }
+
+        .container {
+            padding: 30px;
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .status {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            background: #dcfce7;
+            color: #166534;
+            font-weight: bold;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        .cards .card {
+            margin-bottom: 0;
+        }
+
+        .card h2 {
+            margin-top: 0;
+        }
+
+        .number {
+            font-size: 35px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .info {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: #111827;
+            color: white;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        canvas {
+            width: 100%;
+            height: 280px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #e5e7eb;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        @media (max-width: 800px) {
+            .cards {
+                grid-template-columns: 1fr;
+            }
+
+            .search-box {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <div class="header">
+        <h1>🛡️ CyberNexus</h1>
+        <p>Network Security Monitoring Dashboard</p>
+        <div class="status">● System Active</div>
+    </div>
+
+
+    <div class="container">
+
+        <!-- SUMMARY CARDS -->
+        <div class="cards">
+
+            <div class="card">
+                <h2>Total Alerts</h2>
+                <div class="number" id="total-alerts">Loading...</div>
+            </div>
+
+            <div class="card">
+                <h2>Unique Source IPs</h2>
+                <div class="number" id="unique-ips">Loading...</div>
+            </div>
+
+            <div class="card">
+                <h2>Alert Type</h2>
+                <div class="info" id="alert-type">No alerts</div>
+            </div>
+
+        </div>
+
+
+        <!-- ALERT ACTIVITY -->
+        <div class="card">
+            <h2>📊 Alert Activity</h2>
+            <canvas id="alertChart" width="1100" height="280"></canvas>
+        </div>
+
+
+        <!-- SEARCH -->
+        <div class="card">
+            <h2>🔎 Search Source IP</h2>
+
+            <div class="search-box">
+
+                <input
+                    type="text"
+                    id="search-input"
+                    placeholder="Enter Source IP"
+                >
+
+                <button onclick="searchAlerts()">
+                    Search
+                </button>
+
+                <button onclick="clearSearch()">
+                    Clear
+                </button>
+
+            </div>
+        </div>
+
+
+        <!-- RECENT SECURITY ALERTS -->
+        <div class="card">
+
+            <h2>🚨 Recent Security Alerts</h2>
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Timestamp</th>
+                            <th>Source IP</th>
+                            <th>Destination IP</th>
+                            <th>Protocol</th>
+                            <th>Alert Type</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="alerts-table">
+
+                        <tr>
+                            <td colspan="6">
+                                Loading alerts...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+        let allAlerts = [];
+
+
+        // LOAD ALERTS
+        async function loadAlerts() {
+
+            try {
+
+                const response = await fetch("/alerts");
+
+                const data = await response.json();
+
+                allAlerts = data.alerts || [];
+
+
+                // TOTAL ALERTS
+                document.getElementById("total-alerts").textContent =
+                    data.total_alerts;
+
+
+                // UNIQUE SOURCE IPs
+                const uniqueIPs = new Set(
+                    allAlerts.map(alert => alert.source_ip)
+                );
+
+                document.getElementById("unique-ips").textContent =
+                    uniqueIPs.size;
+
+
+                // ALERT TYPE
+                if (allAlerts.length > 0) {
+
+                    const types = {};
+
+                    allAlerts.forEach(alert => {
+
+                        const type = alert.alert_type || "Unknown";
+
+                        types[type] =
+                            (types[type] || 0) + 1;
+
+                    });
+
+                    let mainType =
+                        Object.keys(types).sort(
+                            (a, b) => types[b] - types[a]
+                        )[0];
+
+                    document.getElementById("alert-type").textContent =
+                        mainType;
+
+                } else {
+
+                    document.getElementById("alert-type").textContent =
+                        "No alerts";
+
+                }
+
+
+                displayAlerts(allAlerts);
+
+                drawChart(allAlerts);
+
+
+            } catch (error) {
+
+                console.error("Error loading alerts:", error);
+
+                document.getElementById("total-alerts").textContent =
+                    "Error";
+
+                document.getElementById("unique-ips").textContent =
+                    "Error";
+
+                document.getElementById("alert-type").textContent =
+                    "Error";
+
+            }
+
+        }
+
+
+        // DISPLAY TABLE
+        function displayAlerts(alerts) {
+
+            const table =
+                document.getElementById("alerts-table");
+
+            table.innerHTML = "";
+
+
+            if (alerts.length === 0) {
+
+                table.innerHTML = `
+                    <tr>
+                        <td colspan="6">
+                            No security alerts found.
+                        </td>
+                    </tr>
+                `;
+
+                return;
+            }
+
+
+            alerts.slice(0, 20).forEach(alert => {
+
+                const row =
+                    document.createElement("tr");
+
+
+                row.innerHTML = `
+                    <td>${alert.id ?? "-"}</td>
+
+                    <td>${alert.timestamp ?? "-"}</td>
+
+                    <td>${alert.source_ip ?? "-"}</td>
+
+                    <td>${alert.destination_ip ?? "-"}</td>
+
+                    <td>${alert.protocol ?? "-"}</td>
+
+                    <td>${alert.alert_type ?? "-"}</td>
+                `;
+
+
+                table.appendChild(row);
+
+            });
+
+        }
+
+
+        // SEARCH SOURCE IP
+        function searchAlerts() {
+
+            const value =
+                document
+                    .getElementById("search-input")
+                    .value
+                    .trim()
+                    .toLowerCase();
+
+
+            if (value === "") {
+
+                displayAlerts(allAlerts);
+
+                return;
+            }
+
+
+            const filtered =
+                allAlerts.filter(alert =>
+
+                    String(alert.source_ip || "")
+                        .toLowerCase()
+                        .includes(value)
+
+                );
+
+
+            displayAlerts(filtered);
+
+        }
+
+
+        // CLEAR SEARCH
+        function clearSearch() {
+
+            document.getElementById("search-input").value = "";
+
+            displayAlerts(allAlerts);
+
+        }
+
+
+        // DRAW ALERT CHART
+        function drawChart(alerts) {
+
+            const canvas =
+                document.getElementById("alertChart");
+
+            const ctx =
+                canvas.getContext("2d");
+
+
+            ctx.clearRect(
+                0,
+                0,
+                canvas.width,
+                canvas.height
+            );
+
+
+            if (alerts.length === 0) {
+
+                ctx.font = "18px Arial";
+
+                ctx.fillText(
+                    "No alert activity yet",
+                    30,
+                    50
+                );
+
+                return;
+
+            }
+
+
+            const maxBars =
+                Math.min(alerts.length, 20);
+
+            const barWidth =
+                canvas.width / maxBars - 10;
+
+
+            alerts
+                .slice(0, maxBars)
+                .reverse()
+                .forEach((alert, index) => {
+
+                    const barHeight = 150;
+
+                    const x =
+                        index *
+                        (canvas.width / maxBars) +
+                        5;
+
+                    const y =
+                        canvas.height -
+                        barHeight -
+                        30;
+
+
+                    ctx.fillRect(
+                        x,
+                        y,
+                        barWidth,
+                        barHeight
+                    );
+
+
+                    ctx.font = "12px Arial";
+
+                    ctx.fillText(
+                        alert.id,
+                        x,
+                        canvas.height - 10
+                    );
+
+                });
+
+        }
+
+
+        // LOAD DASHBOARD
+        loadAlerts();
+
+
+        // AUTO REFRESH EVERY 5 SECONDS
+        setInterval(
+            loadAlerts,
+            5000
+        );
+
+    </script>
+
+</body>
+</html>                   
